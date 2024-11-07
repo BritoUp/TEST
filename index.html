@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consulta de CEP e Rua</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f7f7f7;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            background-color: #fff;
+            border-radius: 8px;
+            padding: 40px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            font-size: 2rem;
+            color: #005A8D;
+            margin-bottom: 30px;
+        }
+
+        .input-container {
+            margin-bottom: 20px;
+        }
+
+        input[type="text"] {
+            padding: 15px;
+            font-size: 1.4rem;
+            width: 100%;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        input[type="text"]:focus {
+            border-color: #005A8D;
+        }
+
+        button {
+            background-color: #005A8D;
+            color: white;
+            font-size: 1.2rem;
+            padding: 15px 0;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+            transition: background-color 0.3s ease;
+            margin-top: 20px;
+        }
+
+        button:hover {
+            background-color: #003F5F;
+        }
+
+        .result-page {
+            display: none;
+        }
+
+        .result-header {
+            font-size: 1.8rem;
+            color: #005A8D;
+            margin-bottom: 20px;
+        }
+
+        .result-content {
+            display: flex;
+            justify-content: space-between;
+            background-color: #e8f4f9;
+            padding: 20px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .result-item {
+            padding: 10px;
+            background-color: #fff;
+            border-radius: 6px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+            flex: 1 1 22%;
+            margin: 5px;
+            box-sizing: border-box;
+        }
+
+        .result-item strong {
+            font-weight: bold;
+            color: #005A8D;
+        }
+
+        .result-item span {
+            margin-top: 8px;
+            color: #333;
+            font-size: 1.1rem;
+        }
+
+        .back-button {
+            background-color: #005A8D;
+            color: white;
+            font-size: 1.2rem;
+            padding: 15px 0;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+            max-width: 150px;
+            transition: background-color 0.3s ease;
+            margin-top: 20px;
+        }
+
+        .back-button:hover {
+            background-color: #003F5F;
+        }
+
+        .error {
+            color: red;
+            font-size: 1.1rem;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+
+        @media (max-width: 600px) {
+            .result-content {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="searchPage">
+        <h1>Consulta de CEP e Rua</h1>
+
+        <div class="input-container">
+            <input type="text" id="inputField" placeholder="Digite o CEP ou Nome da Rua" maxlength="50" onkeypress="handleEnter(event)">
+        </div>
+
+        <button onclick="search()">Consultar</button>
+
+        <div id="errorMessage" class="error"></div>
+    </div>
+
+    <div class="container result-page" id="resultPage">
+        <h1 class="result-header">Resultados do CEP</h1>
+
+        <div class="result-content">
+            <div class="result-item">
+                <strong>Logradouro/Nome:</strong>
+                <span id="logradouro"></span>
+            </div>
+            <div class="result-item">
+                <strong>Bairro/Distrito:</strong>
+                <span id="bairro"></span>
+            </div>
+            <div class="result-item">
+                <strong>Localidade:</strong>
+                <span id="localidade"></span>
+            </div>
+            <div class="result-item">
+                <strong>UF:</strong>
+                <span id="uf"></span>
+            </div>
+            <div class="result-item" id="cepResultContainer">
+                <strong>CEP:</strong>
+                <span id="cepResult"></span>
+            </div>
+        </div>
+
+        <button class="back-button" onclick="newSearch()">Nova Busca</button>
+    </div>
+
+    <script>
+        function search() {
+            const input = document.getElementById('inputField').value.trim();
+            const errorMessage = document.getElementById('errorMessage');
+            const isCep = /^[0-9]{8}$/.test(input.replace(/\D/g, ''));
+
+            errorMessage.textContent = '';
+
+            if (!input) {
+                errorMessage.textContent = 'Por favor, insira um CEP ou nome de rua válido.';
+                return;
+            }
+
+            const url = isCep
+                ? `https://viacep.com.br/ws/${input.replace(/\D/g, '')}/json/`
+                : `https://viacep.com.br/ws/SP/Sao%20Paulo/${encodeURIComponent(input)}/json/`;
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.erro || data.length === 0) {
+                        errorMessage.textContent = 'Nenhum resultado encontrado.';
+                        return;
+                    }
+
+                    const result = Array.isArray(data) ? data[0] : data;
+
+                    document.getElementById('logradouro').textContent = result.logradouro || 'Não disponível';
+                    document.getElementById('bairro').textContent = result.bairro || 'Não disponível';
+                    document.getElementById('localidade').textContent = result.localidade || 'Não disponível';
+                    document.getElementById('uf').textContent = result.uf || 'Não disponível';
+                    
+                    // Exibe o CEP apenas se a pesquisa for pela rua
+                    if (!isCep) {
+                        document.getElementById('cepResultContainer').style.display = 'block';
+                        document.getElementById('cepResult').textContent = result.cep || 'Não disponível';
+                    } else {
+                        document.getElementById('cepResultContainer').style.display = 'none';
+                    }
+
+                    document.getElementById('searchPage').style.display = 'none';
+                    document.getElementById('resultPage').style.display = 'block';
+                })
+                .catch(() => {
+                    errorMessage.textContent = 'Erro ao realizar a consulta. Tente novamente.';
+                });
+        }
+
+        function newSearch() {
+            document.getElementById('inputField').value = '';
+            document.getElementById('searchPage').style.display = 'block';
+            document.getElementById('resultPage').style.display = 'none';
+            document.getElementById('errorMessage').textContent = '';
+        }
+
+        function handleEnter(event) {
+            if (event.key === 'Enter') search();
+        }
+    </script>
+</body>
+</html>
